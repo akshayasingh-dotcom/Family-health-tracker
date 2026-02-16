@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Health Tracker - Cloud Sync</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --success: #52c41a;
+            --warning: #faad14;
+            --danger: #f5222d;
+            --light: #f5f7fa;
+            --dark: #2c3e50;
+            --border: #e8e8e8;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        /* Loading Spinner */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 100px;
+            font-size: 24px;
+            color: var(--primary);
+        }
+        
+        .spinner {
+            border: 4px solid var(--light);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-right: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary), #667eea);
+            color: white;
+            padding: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title h1 {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+        
+        .cloud-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        
+        .user-info {
+            text-align: right;
+        }
+        
+        .user-name {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        .user-bmi {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .btn-switch-user {
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .btn-switch-user:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* User Selection Screen */
+        .user-selection {
+            padding: 50px;
+            text-align: center;
+        }
+        
+        .user-selection h2 {
+            color: var(--dark);
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        
+        .user-card {
+            background: var(--light);
+            padding: 25px;
+            margin: 15px 0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+        }
+        
+        .user-card:hover {
+            background: #e8e8e8;
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+        
+        .user-card-name {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--dark);
+        }
+        
+        .user-card-info {
+            color: #8c8c8c;
+            font-size: 16px;
+        }
+        
+        /* Setup Screen */
+        .setup-screen {
+            padding: 50px;
+        }
+        
+        .setup-screen h2 {
+            color: var(--dark);
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+        
+        .setup-subtitle {
+            text-align: center;
+            color: #8c8c8c;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 16px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 18px;
+            transition: border 0.3s;
+        }
+        
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        /* Tracking Preferences */
+        .tracking-prefs {
+            margin: 30px 0;
+            padding: 30px;
+            background: var(--light);
+            border-radius: 15px;
+        }
+        
+        .tracking-prefs h3 {
+            margin-bottom: 20px;
+            color: var(--dark);
+        }
+        
+        .metric-config {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border: 2px solid var(--border);
+        }
+        
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .metric-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 30px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: var(--success);
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        
+        .frequency-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .freq-option {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .freq-option.selected {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #357abd;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        /* Dashboard */
+        .dashboard {
+            display: none;
+        }
+        
+        .dashboard.active {
+            display: block;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: var(--light);
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 18px;
+            text-align: center;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--dark);
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            background: #e8e8e8;
+        }
+        
+        .tab.active {
+            background: white;
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Encouragement Banner */
+        .encouragement {
+            background: linear-gradient(135deg, var(--success), #73d13d);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 18px;
+            animation: fadeIn 0.5s;
+        }
+        
+        .encouragement.warning {
+            background: linear-gradient(135deg, var(--warning), #ffc53d);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Today's Log */
+        .daily-log-form {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .log-metric {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 12px;
+        }
+        
+        .log-metric label {
+            color: var(--dark);
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border: 2px solid var(--border);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .stat-card.good {
+            border-left: 5px solid var(--success);
+        }
+        
+        .stat-card.warning {
+            border-left: 5px solid var(--warning);
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #8c8c8c;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+        
+        .stat-trend {
+            font-size: 14px;
+            color: #8c8c8c;
+        }
+        
+        .stat-trend.positive {
+            color: var(--success);
+        }
+        
+        .stat-trend.negative {
+            color: var(--danger);
+        }
+        
+        /* History */
+        .history-entry {
+            background: white;
+            border: 2px solid var(--border);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .entry-date {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+        
+        .entry-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .metric-item {
+            background: var(--light);
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #8c8c8c;
+            margin-bottom: 4px;
+        }
+        
+        .metric-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        /* Reports */
+        .report-controls {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        
+        .report-controls h3 {
+            margin-bottom: 15px;
+        }
+        
+        .report-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        /* Charts */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        .chart-card {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .chart-card h3 {
+            color: var(--dark);
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .chart-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 10px;
+        }
+        
+        .chart-stat-item {
+            text-align: center;
+        }
+        
+        .chart-stat-label {
+            font-size: 12px;
+            color: #8c8c8c;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        .chart-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+        
+        .chart-stat-value.avg {
+            color: var(--primary);
+        }
+        
+        .chart-stat-value.high {
+            color: var(--success);
+        }
+        
+        .chart-stat-value.low {
+            color: var(--danger);
+        }
+        
+        .chart-container-wrapper {
+            position: relative;
+            height: 300px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #a0aec0;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .user-info {
+                text-align: center;
+                margin-top: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Loading Screen -->
+        <div id="loadingScreen" class="loading">
+            <div class="spinner"></div>
+            <div>Loading your health data...</div>
+        </div>
+        
+        <!-- Header (shown only when logged in) -->
+        <header id="mainHeader" class="hidden">
+            <div class="header-title">
+                <h1>💪 Family Health Tracker</h1>
+                <p style="opacity: 0.9;">Track. Encourage. Thrive.</p>
+                <span class="cloud-badge">☁️ Cloud Synced</span>
+            </div>
+            <div class="user-info">
+                <div class="user-name" id="currentUserName"></div>
+                <div class="user-bmi" id="currentUserBMI"></div>
+                <button class="btn-switch-user" onclick="switchUser()">Switch User</button>
+            </div>
+        </header>
+        
+        <!-- User Selection Screen -->
+        <div id="userSelection" class="user-selection hidden">
+            <h2>👥 Select Your Profile</h2>
+            <div id="userList"></div>
+            <button class="btn btn-primary" onclick="showSetupScreen()" style="margin-top: 20px;">+ Add New Person</button>
+        </div>
+        
+        <!-- Setup Screen -->
+        <div id="setupScreen" class="setup-screen hidden">
+            <h2>👋 Welcome! Let's Set Up Your Profile</h2>
+            <p class="setup-subtitle">This will be saved to Google Sheets for family sharing</p>
+            
+            <form id="setupForm" onsubmit="completeSetup(event)">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" id="userName" placeholder="e.g., John Smith" required>
+                </div>
+                
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>Height (cm)</label>
+                        <input type="number" id="userHeight" placeholder="170" required min="100" max="250">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Weight (kg)</label>
+                        <input type="number" id="userWeight" placeholder="70" required min="30" max="200" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="tracking-prefs">
+                    <h3>📊 Choose What to Track</h3>
+                    <p style="color: #8c8c8c; margin-bottom: 20px;">Enable metrics you want to track and set how often</p>
+                    
+                    <div id="metricsConfig"></div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Start Tracking!</button>
+            </form>
+        </div>
+        
+        <!-- Dashboard -->
+        <div id="dashboard" class="dashboard hidden">
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('today')">📝 Today</button>
+                <button class="tab" onclick="switchTab('stats')">📊 Stats</button>
+                <button class="tab" onclick="switchTab('history')">📅 History</button>
+                <button class="tab" onclick="switchTab('reports')">📈 Reports</button>
+            </div>
+            
+            <div class="content">
+                <!-- Encouragement Message -->
+                <div id="encouragementBanner"></div>
+                
+                <!-- TODAY TAB -->
+                <div id="today" class="tab-content active">
+                    <h2 style="margin-bottom: 20px;">Today's Entry</h2>
+                    <form id="dailyLogForm" onsubmit="saveDailyLog(event)" class="daily-log-form">
+                        <div class="form-group">
+                            <label>Date</label>
+                            <input type="date" id="logDate" required>
+                        </div>
+                        
+                        <div id="dailyMetrics"></div>
+                        
+                        <div class="form-group">
+                            <label>📝 Daily Notes</label>
+                            <textarea id="dailyNotes" rows="3" placeholder="How are you feeling? Any observations?"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">Save Today's Entry</button>
+                    </form>
+                </div>
+                
+                <!-- STATS TAB -->
+                <div id="stats" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Your Progress</h2>
+                    <div id="statsContainer"></div>
+                </div>
+                
+                <!-- HISTORY TAB -->
+                <div id="history" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Entry History</h2>
+                    <div id="historyContainer"></div>
+                </div>
+                
+                <!-- REPORTS TAB -->
+                <div id="reports" class="tab-content">
+                    <h2 style="margin-bottom: 20px;">Custom Reports</h2>
+                    
+                    <div class="report-controls">
+                        <h3>Generate Report</h3>
+                        <div class="report-options">
+                            <button class="btn btn-primary" onclick="generateReport('week')">Last 7 Days</button>
+                            <button class="btn btn-primary" onclick="generateReport('month')">Last 30 Days</button>
+                            <button class="btn btn-primary" onclick="generateReport('all')">All Time</button>
+                            <button class="btn" style="background: #95a5a6; color: white;" onclick="debugData()">🔍 Debug Data</button>
+                        </div>
+                    </div>
+                    
+                    <div id="reportContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // GOOGLE SHEETS CONFIGURATION
+        // ==========================================
+        
+        const SHEET_URL = 'https://script.google.com/macros/s/AKfycbyiHK42raDmqCOylD3o6spoY_XX5cBrybhLYYjzH-fXibpqWGU4CU4Wzc_a_sMMljSg_w/exec';
+        
+        // Available metrics with their details
+        const AVAILABLE_METRICS = {
+            walking: { name: '30 min Walking', unit: 'Yes/No', type: 'checkbox' },
+            water: { name: 'Water Intake', unit: 'liters', type: 'number', step: '0.1', target: 3 },
+            exercise: { name: 'Exercise', unit: 'minutes', type: 'number', target: 30 },
+            bloodPressure: { name: 'Blood Pressure', unit: 'mmHg', type: 'text', placeholder: '120/80' },
+            bloodSugar: { name: 'Blood Sugar', unit: 'mg/dL', type: 'number', target: 100 },
+            weight: { name: 'Weight', unit: 'kg', type: 'number', step: '0.1' },
+            sleep: { name: 'Sleep', unit: 'hours', type: 'number', step: '0.5', target: 7 },
+            socialInteraction: { name: 'Social Interaction', unit: 'Yes/No', type: 'checkbox' },
+            calories: { name: 'Calories Consumed', unit: 'kcal', type: 'number' },
+            protein: { name: 'Protein', unit: 'grams', type: 'number' }
+        };
+        
+        let currentUser = null;
+        let allData = [];
+        let allUsers = [];
+        
+        // ==========================================
+        // GOOGLE SHEETS FUNCTIONS
+        // ==========================================
+        
+        // Fetch all data from Google Sheets
+        async function fetchAllData() {
+            try {
+                const response = await fetch(SHEET_URL);
+                const data = await response.json();
+                allData = data;
+                
+                // Extract unique users
+                const userMap = new Map();
+                data.forEach(entry => {
+                    if (entry.userName && !userMap.has(entry.userName)) {
+                        userMap.set(entry.userName, {
+                            name: entry.userName,
+                            // We'll get height/weight/bmi from localStorage for setup info
+                        });
+                    }
+                });
+                
+                // Get user profiles from localStorage (for height, weight, BMI, preferences)
+                const storedUsers = getStoredUsers();
+                allUsers = Array.from(userMap.values()).map(user => {
+                    const stored = storedUsers.find(u => u.name === user.name);
+                    return stored || user;
+                });
+                
+                return data;
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                alert('Error loading data from Google Sheets. Please check your internet connection.');
+                return [];
+            }
+        }
+        
+        // Save entry to Google Sheets
+        async function saveToSheet(entry) {
+            try {
+                const response = await fetch(SHEET_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'save',
+                        entry: entry
+                    })
+                });
+                
+                // Refresh data after save
+                await fetchAllData();
+                return true;
+            } catch (error) {
+                console.error('Error saving to sheet:', error);
+                alert('Error saving data. Please try again.');
+                return false;
+            }
+        }
+        
+        // Delete entry from Google Sheets
+        async function deleteFromSheet(userName, date) {
+            try {
+                const response = await fetch(SHEET_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'delete',
+                        userName: userName,
+                        date: date
+                    })
+                });
+                
+                // Refresh data after delete
+                await fetchAllData();
+                return true;
+            } catch (error) {
+                console.error('Error deleting from sheet:', error);
+                alert('Error deleting data. Please try again.');
+                return false;
+            }
+        }
+        
+        // Get user's entries from the fetched data
+        function getUserEntries(userName) {
+            return allData.filter(entry => entry.userName === userName);
+        }
+        
+        // ==========================================
+        // LOCAL STORAGE (for user profiles only)
+        // ==========================================
+        
+        function getStoredUsers() {
+            const stored = localStorage.getItem('healthUsers');
+            return stored ? JSON.parse(stored) : [];
+        }
+        
+        function saveStoredUsers(users) {
+            localStorage.setItem('healthUsers', JSON.stringify(users));
+        }
+        
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        
+        async function initializeApp() {
+            // Show loading
+            document.getElementById('loadingScreen').classList.remove('hidden');
+            
+            // Fetch all data from Google Sheets
+            await fetchAllData();
+            
+            // Hide loading
+            document.getElementById('loadingScreen').classList.add('hidden');
+            
+            const storedUsers = getStoredUsers();
+            
+            if (storedUsers.length > 0 || allUsers.length > 0) {
+                // Merge stored users with users from sheets
+                const mergedUsers = [...storedUsers];
+                allUsers.forEach(sheetUser => {
+                    if (!mergedUsers.find(u => u.name === sheetUser.name)) {
+                        mergedUsers.push(sheetUser);
+                    }
+                });
+                
+                if (mergedUsers.length > 0) {
+                    showUserSelection(mergedUsers);
+                } else {
+                    showSetupScreen();
+                }
+            } else {
+                showSetupScreen();
+            }
+        }
+        
+        function showUserSelection(users) {
+            document.getElementById('userSelection').classList.remove('hidden');
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('active');
+            document.getElementById('mainHeader').classList.add('hidden');
+            
+            const userList = document.getElementById('userList');
+            userList.innerHTML = users.map(user => `
+                <div class="user-card" onclick="selectUser('${user.name}')">
+                    <div class="user-card-name">${user.name}</div>
+                    <div class="user-card-info">
+                        ${user.bmi ? `BMI: ${user.bmi} | ` : ''}
+                        ${user.height ? `Height: ${user.height}cm | ` : ''}
+                        ${user.weight ? `Weight: ${user.weight}kg` : 'Click to set up profile'}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function showSetupScreen() {
+            document.getElementById('setupScreen').classList.remove('hidden');
+            document.getElementById('userSelection').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('active');
+            document.getElementById('mainHeader').classList.add('hidden');
+            
+            // Generate metrics configuration
+            const metricsConfig = document.getElementById('metricsConfig');
+            metricsConfig.innerHTML = Object.keys(AVAILABLE_METRICS).map(key => {
+                const metric = AVAILABLE_METRICS[key];
+                return `
+                    <div class="metric-config">
+                        <div class="metric-header">
+                            <span class="metric-name">${metric.name}</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="enable_${key}" checked onchange="toggleMetricFrequency('${key}')">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div id="freq_${key}" class="frequency-selector">
+                            <div class="freq-option selected" onclick="selectFrequency('${key}', 'daily')">Daily</div>
+                            <div class="freq-option" onclick="selectFrequency('${key}', 'weekly')">Weekly</div>
+                            <div class="freq-option" onclick="selectFrequency('${key}', 'monthly')">Monthly</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function toggleMetricFrequency(metricKey) {
+            const enabled = document.getElementById(`enable_${metricKey}`).checked;
+            const freqSelector = document.getElementById(`freq_${metricKey}`);
+            freqSelector.style.display = enabled ? 'flex' : 'none';
+        }
+        
+        function selectFrequency(metricKey, frequency) {
+            const container = document.getElementById(`freq_${metricKey}`);
+            container.querySelectorAll('.freq-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+        }
+        
+        function calculateBMI(height, weight) {
+            const heightInMeters = height / 100;
+            const bmi = weight / (heightInMeters * heightInMeters);
+            return bmi.toFixed(1);
+        }
+        
+        async function completeSetup(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('userName').value;
+            const height = parseFloat(document.getElementById('userHeight').value);
+            const weight = parseFloat(document.getElementById('userWeight').value);
+            const bmi = calculateBMI(height, weight);
+            
+            // Collect tracking preferences
+            const trackingPrefs = {};
+            Object.keys(AVAILABLE_METRICS).forEach(key => {
+                const enabled = document.getElementById(`enable_${key}`).checked;
+                if (enabled) {
+                    const freqContainer = document.getElementById(`freq_${key}`);
+                    const selected = freqContainer.querySelector('.freq-option.selected');
+                    trackingPrefs[key] = selected.textContent.toLowerCase();
+                }
+            });
+            
+            const user = {
+                name,
+                height,
+                weight,
+                bmi,
+                trackingPrefs,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Save to localStorage
+            const users = getStoredUsers();
+            const existingIndex = users.findIndex(u => u.name === name);
+            if (existingIndex >= 0) {
+                users[existingIndex] = user;
+            } else {
+                users.push(user);
+            }
+            saveStoredUsers(users);
+            
+            await selectUser(name);
+        }
+        
+        async function selectUser(userName) {
+            // Refresh data first
+            await fetchAllData();
+            
+            const users = getStoredUsers();
+            currentUser = users.find(u => u.name === userName);
+            
+            if (!currentUser) {
+                // User exists in sheets but not in localStorage, create basic profile
+                currentUser = {
+                    name: userName,
+                    trackingPrefs: Object.keys(AVAILABLE_METRICS).reduce((acc, key) => {
+                        acc[key] = 'daily';
+                        return acc;
+                    }, {})
+                };
+            }
+            
+            document.getElementById('userSelection').classList.add('hidden');
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('active');
+            document.getElementById('mainHeader').classList.remove('hidden');
+            
+            document.getElementById('currentUserName').textContent = currentUser.name;
+            document.getElementById('currentUserBMI').textContent = currentUser.bmi ? 
+                `BMI: ${currentUser.bmi} | ${currentUser.height}cm | ${currentUser.weight}kg` : 
+                'Profile setup incomplete';
+            
+            // Set today's date
+            document.getElementById('logDate').valueAsDate = new Date();
+            
+            renderDailyMetrics();
+            showEncouragement();
+            displayStats();
+            displayHistory();
+        }
+        
+        async function switchUser() {
+            await fetchAllData();
+            const users = getStoredUsers();
+            showUserSelection(users);
+        }
+        
+        // ==========================================
+        // DAILY LOG FUNCTIONS
+        // ==========================================
+        
+        function renderDailyMetrics() {
+            const container = document.getElementById('dailyMetrics');
+            const today = new Date().toISOString().split('T')[0];
+            const entries = getUserEntries(currentUser.name);
+            const todayEntry = entries.find(e => e.date === today);
+            
+            container.innerHTML = Object.keys(currentUser.trackingPrefs).map(key => {
+                const metric = AVAILABLE_METRICS[key];
+                const frequency = currentUser.trackingPrefs[key];
+                const value = todayEntry ? todayEntry[key] : '';
+                
+                // Show checkbox ONLY for:
+                // 1. Original checkbox metrics (walking, socialInteraction)
+                // 2. Exercise when tracked weekly/monthly (for 3x/week goal)
+                const isCheckboxMetric = metric.type === 'checkbox';
+                const isExerciseWeeklyMonthly = key === 'exercise' && (frequency === 'weekly' || frequency === 'monthly');
+                
+                if (isCheckboxMetric || isExerciseWeeklyMonthly) {
+                    let goalText = '';
+                    if (key === 'exercise' && frequency === 'weekly') {
+                        goalText = ' | Goal: 3 times per week';
+                    } else if (key === 'exercise' && frequency === 'monthly') {
+                        goalText = ' | Goal: Track monthly';
+                    }
+                    
+                    return `
+                        <div class="log-metric">
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="log_${key}" ${value ? 'checked' : ''}>
+                                <label for="log_${key}" style="margin: 0;">${metric.name} ✓</label>
+                            </div>
+                            <div style="font-size: 12px; color: #8c8c8c; margin-top: 5px;">Tracked ${frequency}${goalText}</div>
+                        </div>
+                    `;
+                } else {
+                    // Regular number/text inputs for everything else
+                    return `
+                        <div class="log-metric">
+                            <label for="log_${key}">${metric.name}</label>
+                            <input type="${metric.type}" id="log_${key}" 
+                                   placeholder="${metric.placeholder || metric.unit}"
+                                   step="${metric.step || '1'}"
+                                   value="${value || ''}">
+                            <div style="font-size: 12px; color: #8c8c8c; margin-top: 5px;">
+                                Tracked ${frequency}${metric.target ? ` | Target: ${metric.target} ${metric.unit}` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+        
+        async function saveDailyLog(event) {
+            event.preventDefault();
+            
+            const date = document.getElementById('logDate').value;
+            const notes = document.getElementById('dailyNotes').value;
+            
+            const entry = {
+                userName: currentUser.name,
+                date,
+                notes,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Collect all metric values
+            Object.keys(currentUser.trackingPrefs).forEach(key => {
+                const metric = AVAILABLE_METRICS[key];
+                const frequency = currentUser.trackingPrefs[key];
+                const element = document.getElementById(`log_${key}`);
+                
+                // Treat as checkbox ONLY for:
+                // 1. Original checkbox metrics
+                // 2. Exercise when weekly/monthly
+                const isCheckboxMetric = metric.type === 'checkbox';
+                const isExerciseWeeklyMonthly = key === 'exercise' && (frequency === 'weekly' || frequency === 'monthly');
+                
+                if (isCheckboxMetric || isExerciseWeeklyMonthly) {
+                    entry[key] = element.checked;
+                } else if (metric.type === 'number') {
+                    entry[key] = element.value ? parseFloat(element.value) : '';
+                } else {
+                    entry[key] = element.value || '';
+                }
+            });
+            
+            // Save to Google Sheets
+            const success = await saveToSheet(entry);
+            
+            if (success) {
+                alert('✅ Entry saved to cloud!');
+                showEncouragement();
+                displayStats();
+                displayHistory();
+            }
+        }
+        
+        // ==========================================
+        // ENCOURAGEMENT SYSTEM
+        // ==========================================
+        
+        function showEncouragement() {
+            const entries = getUserEntries(currentUser.name);
+            const banner = document.getElementById('encouragementBanner');
+            
+            if (entries.length === 0) {
+                banner.innerHTML = '';
+                return;
+            }
+            
+            // Get last 7 days of entries
+            const today = new Date();
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(today.getDate() - 7);
+            
+            const recentEntries = entries.filter(e => {
+                const entryDate = new Date(e.date);
+                return entryDate >= sevenDaysAgo && entryDate <= today;
+            });
+            
+            const streak = recentEntries.length;
+            const consistentMetrics = calculateConsistency(recentEntries);
+            
+            let message = '';
+            let className = 'encouragement';
+            
+            if (streak >= 7) {
+                message = `🎉 Amazing! 7-day streak! You're doing fantastic, ${currentUser.name}!`;
+            } else if (streak >= 5) {
+                message = `💪 Great job! ${streak} days of consistent tracking! Keep it up!`;
+            } else if (streak >= 3) {
+                message = `👏 Well done! ${streak} days tracked. You're building a great habit!`;
+            } else if (consistentMetrics.length > 0) {
+                message = `⭐ Excellent work on: ${consistentMetrics.join(', ')}! Keep going!`;
+            } else if (entries.length === 1) {
+                message = `🌟 Welcome! You've taken the first step. Every journey begins with one!`;
+            } else {
+                message = `📈 Keep going, ${currentUser.name}! Consistency is key to success!`;
+                className = 'encouragement warning';
+            }
+            
+            banner.innerHTML = `<div class="${className}">${message}</div>`;
+        }
+        
+        function calculateConsistency(entries) {
+            const consistent = [];
+            
+            Object.keys(currentUser.trackingPrefs).forEach(key => {
+                const metric = AVAILABLE_METRICS[key];
+                let metCount = 0;
+                
+                entries.forEach(entry => {
+                    if (metric.type === 'checkbox' && entry[key]) {
+                        metCount++;
+                    } else if (metric.target && entry[key] >= metric.target) {
+                        metCount++;
+                    }
+                });
+                
+                if (metCount >= entries.length * 0.7) {
+                    consistent.push(metric.name);
+                }
+            });
+            
+            return consistent;
+        }
+        
+        // ==========================================
+        // STATS & HISTORY
+        // ==========================================
+        
+        function displayStats() {
+            const entries = getUserEntries(currentUser.name);
+            const container = document.getElementById('statsContainer');
+            
+            if (entries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 64px;">📊</div>
+                        <h3>No data yet</h3>
+                        <p>Start logging your daily metrics to see your progress!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const stats = calculateStats(entries);
+            
+            container.innerHTML = `
+                <div class="stats-grid">
+                    ${Object.keys(currentUser.trackingPrefs).map(key => {
+                        const metric = AVAILABLE_METRICS[key];
+                        const frequency = currentUser.trackingPrefs[key];
+                        const stat = stats[key];
+                        
+                        if (!stat) return '';
+                        
+                        let className = 'stat-card';
+                        
+                        // Weekly goal coloring ONLY for exercise
+                        if (key === 'exercise' && frequency === 'weekly' && stat.avg >= 3) {
+                            className += ' good';
+                        } else if (key === 'exercise' && frequency === 'weekly' && stat.avg < 3) {
+                            className += ' warning';
+                        } else if (metric.target && stat.avg !== undefined) {
+                            // Regular target-based coloring for other metrics
+                            className += stat.avg >= metric.target ? ' good' : ' warning';
+                        }
+                        
+                        return `
+                            <div class="${className}">
+                                <div class="stat-label">${metric.name}</div>
+                                <div class="stat-value">${stat.display}</div>
+                                <div class="stat-trend">
+                                    ${stat.trend || `${entries.length} entries tracked`}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                    
+                    <div class="stat-card good">
+                        <div class="stat-label">Total Entries</div>
+                        <div class="stat-value">${entries.length}</div>
+                        <div class="stat-trend">Keep it up!</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function calculateStats(entries) {
+            const stats = {};
+            
+            Object.keys(currentUser.trackingPrefs).forEach(key => {
+                const metric = AVAILABLE_METRICS[key];
+                const frequency = currentUser.trackingPrefs[key];
+                const values = entries.map(e => e[key]).filter(v => v !== null && v !== undefined && v !== '');
+                
+                if (values.length === 0) return;
+                
+                // Weekly goal tracking ONLY for exercise
+                if (key === 'exercise' && frequency === 'weekly') {
+                    // Count yes entries in the last 7 days
+                    const today = new Date();
+                    const weekAgo = new Date(today);
+                    weekAgo.setDate(today.getDate() - 7);
+                    
+                    const thisWeekEntries = entries.filter(e => {
+                        const entryDate = new Date(e.date);
+                        return entryDate >= weekAgo && entryDate <= today;
+                    });
+                    
+                    const yesCount = thisWeekEntries.filter(e => e[key] === true || e[key] === 'true').length;
+                    const goalMet = yesCount >= 3;
+                    
+                    stats[key] = {
+                        display: `${yesCount}/3`,
+                        trend: goalMet ? '✅ Weekly goal achieved!' : `${3 - yesCount} more needed this week`,
+                        avg: yesCount
+                    };
+                } else if (key === 'exercise' && frequency === 'monthly') {
+                    // Count yes entries in the last 30 days for exercise
+                    const today = new Date();
+                    const monthAgo = new Date(today);
+                    monthAgo.setDate(today.getDate() - 30);
+                    
+                    const thisMonthEntries = entries.filter(e => {
+                        const entryDate = new Date(e.date);
+                        return entryDate >= monthAgo && entryDate <= today;
+                    });
+                    
+                    const yesCount = thisMonthEntries.filter(e => e[key] === true || e[key] === 'true').length;
+                    
+                    stats[key] = {
+                        display: `${yesCount} times`,
+                        trend: `This month`,
+                        avg: yesCount
+                    };
+                } else if (metric.type === 'checkbox') {
+                    // Daily checkbox (walking, socialInteraction)
+                    const count = values.filter(v => v === true || v === 'true').length;
+                    const percentage = ((count / values.length) * 100).toFixed(0);
+                    stats[key] = {
+                        display: `${percentage}%`,
+                        trend: `${count}/${values.length} days`
+                    };
+                } else if (metric.type === 'number') {
+                    // Regular number metrics (water, blood sugar, etc.)
+                    const numValues = values.map(v => parseFloat(v)).filter(v => !isNaN(v));
+                    if (numValues.length === 0) return;
+                    const avg = numValues.reduce((sum, v) => sum + v, 0) / numValues.length;
+                    stats[key] = {
+                        avg,
+                        display: avg.toFixed(1) + ' ' + metric.unit,
+                        trend: metric.target ? (avg >= metric.target ? '✅ Meeting target' : '⚠️ Below target') : ''
+                    };
+                } else {
+                    // Text fields (blood pressure)
+                    stats[key] = {
+                        display: values.length + ' entries',
+                        trend: 'Last: ' + values[values.length - 1]
+                    };
+                }
+            });
+            
+            return stats;
+        }
+        
+        function displayHistory() {
+            const entries = getUserEntries(currentUser.name);
+            const container = document.getElementById('historyContainer');
+            
+            if (entries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 64px;">📅</div>
+                        <h3>No history yet</h3>
+                        <p>Your entries will appear here as you track them!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const sorted = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            container.innerHTML = sorted.map(entry => `
+                <div class="history-entry">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <div class="entry-date">${formatDate(entry.date)}</div>
+                        <button class="btn btn-danger" onclick="deleteEntry('${entry.date}')">Delete</button>
+                    </div>
+                    
+                    <div class="entry-metrics">
+                        ${Object.keys(currentUser.trackingPrefs).map(key => {
+                            const metric = AVAILABLE_METRICS[key];
+                            const value = entry[key];
+                            
+                            if (value === null || value === undefined || value === '') return '';
+                            
+                            let displayValue;
+                            if (metric.type === 'checkbox') {
+                                displayValue = (value === true || value === 'true') ? '✅ Yes' : '❌ No';
+                            } else {
+                                displayValue = value + ' ' + metric.unit;
+                            }
+                            
+                            return `
+                                <div class="metric-item">
+                                    <div class="metric-label">${metric.name}</div>
+                                    <div class="metric-value">${displayValue}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    
+                    ${entry.notes ? `
+                        <div style="margin-top: 15px; padding: 12px; background: var(--light); border-radius: 8px;">
+                            <div style="font-size: 12px; color: #8c8c8c; margin-bottom: 5px;">NOTES</div>
+                            <div>${entry.notes}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+        
+        async function deleteEntry(date) {
+            if (!confirm('Are you sure you want to delete this entry?')) return;
+            
+            const success = await deleteFromSheet(currentUser.name, date);
+            
+            if (success) {
+                displayHistory();
+                displayStats();
+                showEncouragement();
+            }
+        }
+        
+        // ==========================================
+        // REPORTS
+        // ==========================================
+        
+        // ==========================================
+        // REPORTS WITH CHARTS
+        // ==========================================
+        
+        let activeCharts = {}; // Store chart instances to destroy before recreating
+        
+        function generateReport(period) {
+            const entries = getUserEntries(currentUser.name);
+            const container = document.getElementById('reportContainer');
+            
+            // Destroy existing charts
+            Object.values(activeCharts).forEach(chart => chart.destroy());
+            activeCharts = {};
+            
+            let filteredEntries = entries;
+            let title = 'All Time Report';
+            
+            if (period === 'week') {
+                const today = new Date();
+                const weekAgo = new Date(today);
+                weekAgo.setDate(today.getDate() - 7);
+                filteredEntries = entries.filter(e => new Date(e.date) >= weekAgo);
+                title = 'Last 7 Days Report';
+            } else if (period === 'month') {
+                const today = new Date();
+                const monthAgo = new Date(today);
+                monthAgo.setDate(today.getDate() - 30);
+                filteredEntries = entries.filter(e => new Date(e.date) >= monthAgo);
+                title = 'Last 30 Days Report';
+            }
+            
+            if (filteredEntries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 64px;">📈</div>
+                        <h3>No data for this period</h3>
+                    </div>
+                `;
+                return;
+            }
+            
+            const sorted = [...filteredEntries].sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            // Build HTML with chart containers
+            container.innerHTML = `
+                <div style="background: white; border: 2px solid var(--border); border-radius: 15px; padding: 30px;">
+                    <h2 style="margin-bottom: 10px; color: var(--primary);">${title}</h2>
+                    <p style="color: #8c8c8c; margin-bottom: 30px;">${filteredEntries.length} entries from ${formatDate(sorted[0].date)} to ${formatDate(sorted[sorted.length-1].date)}</p>
+                    
+                    <div class="charts-grid" id="chartsContainer"></div>
+                    
+                    <button class="btn btn-primary" onclick="window.print()" style="margin-top: 30px;">
+                        🖨️ Print Report
+                    </button>
+                </div>
+            `;
+            
+            // Generate charts for each tracked metric
+            const chartsContainer = document.getElementById('chartsContainer');
+            
+            Object.keys(currentUser.trackingPrefs).forEach(key => {
+                const metric = AVAILABLE_METRICS[key];
+                const frequency = currentUser.trackingPrefs[key];
+                
+                // Only create charts for numeric metrics or checkboxes
+                if (metric.type === 'number' || metric.type === 'checkbox' || 
+                    (key === 'exercise' && (frequency === 'weekly' || frequency === 'monthly'))) {
+                    
+                    createMetricChart(key, metric, sorted, chartsContainer);
+                }
+            });
+        }
+        
+        function createMetricChart(metricKey, metric, entries, container) {
+            const frequency = currentUser.trackingPrefs[metricKey];
+            const isCheckbox = metric.type === 'checkbox' || 
+                               (metricKey === 'exercise' && (frequency === 'weekly' || frequency === 'monthly'));
+            
+            // Extract data
+            const labels = entries.map(e => {
+                const date = new Date(e.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            
+            let values = entries.map(e => {
+                if (isCheckbox) {
+                    return (e[metricKey] === true || e[metricKey] === 'true') ? 1 : 0;
+                } else {
+                    const val = parseFloat(e[metricKey]);
+                    return isNaN(val) ? null : val;
+                }
+            });
+            
+            // Filter out null values for calculations
+            const validValues = values.filter(v => v !== null);
+            
+            if (validValues.length === 0) return; // Skip if no data
+            
+            // Calculate stats
+            const avg = validValues.reduce((sum, v) => sum + v, 0) / validValues.length;
+            const max = Math.max(...validValues);
+            const min = Math.min(...validValues);
+            
+            // Create chart card
+            const chartId = `chart_${metricKey}`;
+            
+            let statsHTML;
+            if (isCheckbox) {
+                // For checkboxes, only show average (percentage)
+                statsHTML = `
+                    <div class="chart-stats">
+                        <div class="chart-stat-item">
+                            <div class="chart-stat-label">Completion Rate</div>
+                            <div class="chart-stat-value avg">${(avg * 100).toFixed(0)}%</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // For numbers, show average, highest, lowest
+                statsHTML = `
+                    <div class="chart-stats">
+                        <div class="chart-stat-item">
+                            <div class="chart-stat-label">Average</div>
+                            <div class="chart-stat-value avg">${avg.toFixed(1)} ${metric.unit}</div>
+                        </div>
+                        <div class="chart-stat-item">
+                            <div class="chart-stat-label">Highest</div>
+                            <div class="chart-stat-value high">${max.toFixed(1)} ${metric.unit}</div>
+                        </div>
+                        <div class="chart-stat-item">
+                            <div class="chart-stat-label">Lowest</div>
+                            <div class="chart-stat-value low">${min.toFixed(1)} ${metric.unit}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            const cardHTML = `
+                <div class="chart-card">
+                    <h3>${metric.name}</h3>
+                    ${statsHTML}
+                    <div class="chart-container-wrapper">
+                        <canvas id="${chartId}"></canvas>
+                    </div>
+                </div>
+            `;
+            
+            container.insertAdjacentHTML('beforeend', cardHTML);
+            
+            // Create chart
+            const ctx = document.getElementById(chartId).getContext('2d');
+            
+            // Prepare dataset
+            const dataset = {
+                label: metric.name,
+                data: values,
+                borderColor: '#4a90e2',
+                backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                spanGaps: true // Connect points even if there are null values
+            };
+            
+            // Add average line
+            const avgLine = {
+                label: 'Average',
+                data: Array(values.length).fill(avg),
+                borderColor: '#52c41a',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                fill: false,
+                pointRadius: 0,
+                pointHoverRadius: 0
+            };
+            
+            // Target line (if applicable)
+            const datasets = [dataset, avgLine];
+            if (metric.target) {
+                datasets.push({
+                    label: 'Target',
+                    data: Array(values.length).fill(metric.target),
+                    borderColor: '#faad14',
+                    borderWidth: 2,
+                    borderDash: [10, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                });
+            }
+            
+            activeCharts[metricKey] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        if (isCheckbox) {
+                                            label += context.parsed.y === 1 ? 'Yes' : 'No';
+                                        } else {
+                                            label += context.parsed.y.toFixed(1) + ' ' + metric.unit;
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    if (isCheckbox) {
+                                        return value === 1 ? 'Yes' : value === 0 ? 'No' : '';
+                                    }
+                                    return value;
+                                }
+                            },
+                            max: isCheckbox ? 1.2 : undefined
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // ==========================================
+        // TAB SWITCHING
+        // ==========================================
+        
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (tabName === 'stats') {
+                displayStats();
+            } else if (tabName === 'history') {
+                displayHistory();
+            }
+        }
+        
+        // ==========================================
+        // UTILITY FUNCTIONS
+        // ==========================================
+        
+        function formatDate(dateString) {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', options);
+        }
+        
+        // ==========================================
+        // DEBUG FUNCTION
+        // ==========================================
+        
+        function debugData() {
+            const container = document.getElementById('reportContainer');
+            
+            let debugInfo = '<div style="background: white; padding: 30px; border-radius: 15px; font-family: monospace;">';
+            debugInfo += '<h2 style="color: var(--primary); margin-bottom: 20px;">🔍 Debug Information</h2>';
+            
+            // Check 1: Total data loaded
+            debugInfo += '<div style="margin-bottom: 20px; padding: 15px; background: var(--light); border-radius: 10px;">';
+            debugInfo += '<h3 style="margin-bottom: 10px;">📊 Total Data Loaded:</h3>';
+            debugInfo += `<p><strong>${allData.length}</strong> total entries in Google Sheets</p>`;
+            if (allData.length === 0) {
+                debugInfo += '<p style="color: red;">⚠️ NO DATA LOADED! Check your Google Sheets connection.</p>';
+            }
+            debugInfo += '</div>';
+            
+            // Check 2: Current user data
+            if (currentUser) {
+                const userEntries = getUserEntries(currentUser.name);
+                debugInfo += '<div style="margin-bottom: 20px; padding: 15px; background: var(--light); border-radius: 10px;">';
+                debugInfo += `<h3 style="margin-bottom: 10px;">👤 Current User: ${currentUser.name}</h3>`;
+                debugInfo += `<p><strong>${userEntries.length}</strong> entries for this user</p>`;
+                
+                if (userEntries.length > 0) {
+                    const dates = userEntries.map(e => e.date).sort();
+                    debugInfo += `<p>Date range: ${dates[0]} to ${dates[dates.length-1]}</p>`;
+                } else {
+                    debugInfo += '<p style="color: red;">⚠️ NO ENTRIES for this user!</p>';
+                }
+                debugInfo += '</div>';
+            }
+            
+            // Check 3: All users in data
+            debugInfo += '<div style="margin-bottom: 20px; padding: 15px; background: var(--light); border-radius: 10px;">';
+            debugInfo += '<h3 style="margin-bottom: 10px;">👥 All Users Found:</h3>';
+            const uniqueUsers = [...new Set(allData.map(e => e.userName))];
+            if (uniqueUsers.length > 0) {
+                uniqueUsers.forEach(user => {
+                    const count = allData.filter(e => e.userName === user).length;
+                    debugInfo += `<p>• ${user}: ${count} entries</p>`;
+                });
+            } else {
+                debugInfo += '<p style="color: red;">⚠️ NO USERS found in data!</p>';
+            }
+            debugInfo += '</div>';
+            
+            // Check 4: Sample data
+            debugInfo += '<div style="margin-bottom: 20px; padding: 15px; background: var(--light); border-radius: 10px;">';
+            debugInfo += '<h3 style="margin-bottom: 10px;">📋 First 3 Entries (Sample):</h3>';
+            if (allData.length > 0) {
+                allData.slice(0, 3).forEach((entry, i) => {
+                    debugInfo += `<div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px;">`;
+                    debugInfo += `<p><strong>Entry ${i+1}:</strong></p>`;
+                    debugInfo += `<p>User: ${entry.userName || 'MISSING'}</p>`;
+                    debugInfo += `<p>Date: ${entry.date || 'MISSING'}</p>`;
+                    debugInfo += `<p>Exercise: ${entry.exercise}</p>`;
+                    debugInfo += `<p>Blood Pressure: ${entry.bloodPressure || 'empty'}</p>`;
+                    debugInfo += `</div>`;
+                });
+            }
+            debugInfo += '</div>';
+            
+            // Check 5: Sheet URL
+            debugInfo += '<div style="margin-bottom: 20px; padding: 15px; background: var(--light); border-radius: 10px;">';
+            debugInfo += '<h3 style="margin-bottom: 10px;">🔗 Google Sheets URL:</h3>';
+            debugInfo += `<p style="word-break: break-all; font-size: 12px;">${SHEET_URL}</p>`;
+            debugInfo += '</div>';
+            
+            // Check 6: Date filtering test
+            if (currentUser) {
+                const userEntries = getUserEntries(currentUser.name);
+                if (userEntries.length > 0) {
+                    debugInfo += '<div style="padding: 15px; background: var(--light); border-radius: 10px;">';
+                    debugInfo += '<h3 style="margin-bottom: 10px;">📅 Date Filtering Test:</h3>';
+                    
+                    const today = new Date();
+                    const monthAgo = new Date(today);
+                    monthAgo.setDate(today.getDate() - 30);
+                    
+                    debugInfo += `<p>Today: ${today.toISOString().split('T')[0]}</p>`;
+                    debugInfo += `<p>30 days ago: ${monthAgo.toISOString().split('T')[0]}</p>`;
+                    
+                    const last30Days = userEntries.filter(e => {
+                        const entryDate = new Date(e.date);
+                        return entryDate >= monthAgo && entryDate <= today;
+                    });
+                    
+                    debugInfo += `<p><strong>${last30Days.length}</strong> entries in last 30 days</p>`;
+                    
+                    if (last30Days.length === 0) {
+                        debugInfo += '<p style="color: red;">⚠️ This is why your report is empty!</p>';
+                        debugInfo += '<p>Check if dates in your Google Sheet are in the future or too old.</p>';
+                    }
+                    debugInfo += '</div>';
+                }
+            }
+            
+            debugInfo += '</div>';
+            
+            container.innerHTML = debugInfo;
+        }
+        
+        // ==========================================
+        // INITIALIZE
+        // ==========================================
+        
+        window.onload = function() {
+            initializeApp();
+        };
+    </script>
+</body>
+</html>
